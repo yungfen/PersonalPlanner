@@ -1,20 +1,23 @@
 {
-  "name": "six-month-planner",
+  "name": "six-month-planner-neon",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "netlify dev",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.0",
+    "netlify-identity-widget": "^1.9.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@netlify/functions": "^2.6.0",
+    "@neondatabase/serverless": "^0.9.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "netlify-cli": "^17.0.0",
     "vite": "^5.0.0"
   }
 }
