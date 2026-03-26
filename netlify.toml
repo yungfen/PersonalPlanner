@@ -10,6 +10,12 @@
 [template.environment]
   NETLIFY_IDENTITY = "true"
 
+[build.environment]
+  NODE_VERSION = "18"
+
+[functions]
+  node_bundler = "esbuild"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
