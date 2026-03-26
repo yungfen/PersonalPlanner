@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from './supabase'
+import netlifyIdentity from 'netlify-identity-widget'
 
 /* ─────────────────────────────── styles ─────────────────────────────── */
 const CSS = `
@@ -180,7 +180,16 @@ function makeDoneState() {
 }
 
 /* ─────────────────────────────── Planner ─────────────────────────────── */
-export default function Planner({ session }) {
+// Helper: get Netlify Identity JWT token for authenticated requests
+async function getAuthHeaders() {
+  const user = netlifyIdentity.currentUser()
+  if (!user) return {}
+  // Refresh token if needed
+  await user.jwt(true)
+  return { Authorization: `Bearer ${user.token.access_token}` }
+}
+
+export default function Planner({ user }) {
   const [activeTab, setActiveTab]     = useState('overview')
   const [activeMonth, setActiveMonth] = useState(0)
   const [openWeeks, setOpenWeeks]     = useState({ 0: true })
@@ -188,37 +197,50 @@ export default function Planner({ session }) {
   const [syncStatus, setSyncStatus]   = useState('ok') // ok | busy | err
   const debounceRef = useRef(null)
 
-  // Load from Supabase on mount
+  // Load from Neon via Netlify Function on mount
   useEffect(() => {
     const load = async () => {
       setSyncStatus('busy')
-      const { data, error } = await supabase
-        .from('planner_progress')
-        .select('done_state')
-        .eq('user_id', session.user.id)
-        .single()
-      if (error && error.code !== 'PGRST116') { setSyncStatus('err'); return }
-      if (data?.done_state) setDone(prev => ({ ...prev, ...data.done_state }))
-      setSyncStatus('ok')
+      try {
+        const headers = await getAuthHeaders()
+        const res = await fetch('/api/progress', { headers })
+        if (!res.ok) throw new Error(await res.text())
+        const { done_state } = await res.json()
+        if (done_state && Object.keys(done_state).length > 0) {
+          setDone(prev => ({ ...prev, ...done_state }))
+        }
+        setSyncStatus('ok')
+      } catch (e) {
+        console.error('Load error:', e)
+        setSyncStatus('err')
+      }
     }
     load()
-  }, [session.user.id])
+  }, [user.email])
 
-  // Debounced save to Supabase
-  const saveToSupabase = useCallback(async (newDone) => {
+  // Debounced save to Neon via Netlify Function
+  const saveToNeon = useCallback(async (newDone) => {
     setSyncStatus('busy')
-    const { error } = await supabase
-      .from('planner_progress')
-      .upsert({ user_id: session.user.id, done_state: newDone, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
-    setSyncStatus(error ? 'err' : 'ok')
-  }, [session.user.id])
+    try {
+      const headers = await getAuthHeaders()
+      const res = await fetch('/api/progress', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done_state: newDone }),
+      })
+      setSyncStatus(res.ok ? 'ok' : 'err')
+    } catch (e) {
+      console.error('Save error:', e)
+      setSyncStatus('err')
+    }
+  }, [user.email])
 
   const toggleTask = (mi, wi, ti) => {
     const key = `${mi}-${wi}-${ti}`
     const nd = { ...done, [key]: !done[key] }
     setDone(nd)
     clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => saveToSupabase(nd), 1200)
+    debounceRef.current = setTimeout(() => saveToNeon(nd), 1200)
   }
 
   const toggleWeek = (wi) => setOpenWeeks(p => ({ ...p, [wi]: !p[wi] }))
@@ -247,8 +269,8 @@ export default function Planner({ session }) {
           <p>TOEFL 備考 · 海外求職 · 九月送出留學申請 · 好好休息</p>
           <div className="hdr-meta">
             <span className={`sync-badge ${syncClass[syncStatus]}`}>{syncLabel[syncStatus]}</span>
-            <span style={{ fontSize: '.74rem', color: 'var(--soft)' }}>{session.user.email}</span>
-            <button className="logout-btn" onClick={() => supabase.auth.signOut()}>登出</button>
+            <span style={{ fontSize: '.74rem', color: 'var(--soft)' }}>{user.email}</span>
+            <button className="logout-btn" onClick={() => netlifyIdentity.logout()}>登出</button>
           </div>
         </div>
 
