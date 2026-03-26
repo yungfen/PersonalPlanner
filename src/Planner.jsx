@@ -203,7 +203,7 @@ export default function Planner({ user }) {
       setSyncStatus('busy')
       try {
         const headers = await getAuthHeaders()
-        const res = await fetch('/api/progress', { headers })
+        const res = await fetch('/.netlify/functions/progress', { headers })
         if (!res.ok) throw new Error(await res.text())
         const { done_state } = await res.json()
         if (done_state && Object.keys(done_state).length > 0) {
@@ -223,7 +223,7 @@ export default function Planner({ user }) {
     setSyncStatus('busy')
     try {
       const headers = await getAuthHeaders()
-      const res = await fetch('/api/progress', {
+      const res = await fetch('/.netlify/functions/progress', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ done_state: newDone }),
