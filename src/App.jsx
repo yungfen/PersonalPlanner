@@ -22,7 +22,11 @@ export default function App() {
     })
     netlifyIdentity.on('logout', () => setUser(null))
 
-    netlifyIdentity.init()   // ← 移到這裡，listeners 已就位
+    netlifyIdentity.init(
+      {
+        APIUrl: 'https://personalplannerfor6months.netlify.app/.netlify/identity'
+      }
+    )   // ← 移到這裡，listeners 已就位
 
     return () => {
       netlifyIdentity.off('init')
